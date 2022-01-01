@@ -1,7 +1,8 @@
 import spotipy
-from secret import client_id, client_secret
+from secret import client_id, client_secret, displayNames
 from spotipy.oauth2 import SpotifyClientCredentials, SpotifyOAuth
 import typing
+import operator
 
 class SpotifyHelper():
     def __init__(self):
@@ -31,7 +32,17 @@ class SpotifyHelper():
         playlists = self.sp.current_user_playlists()
 
         for i in range(0, len(playlists['items'])):
-            if(query in playlists['items'][i]['name']):
+            userInfo = playlists['items'][i]['owner']
+            username = userInfo['id']
+            # if(query in playlists['items'][i]['name']):
+            #     playlistId = playlists['items'][i]['id']
+            #     total = playlists['items'][i]['tracks']['total']
+            #     miniDict = {}
+            #     miniDict['id'] = playlistId
+            #     miniDict['num_songs'] = total
+            #     playlistIdList[playlists['items'][i]['name']] = miniDict
+            #     print("total is " + str(playlists['items'][i]['tracks']['total']))
+            if(username == 'chris.a147'):
                 playlistId = playlists['items'][i]['id']
                 total = playlists['items'][i]['tracks']['total']
                 miniDict = {}
@@ -40,6 +51,7 @@ class SpotifyHelper():
                 playlistIdList[playlists['items'][i]['name']] = miniDict
                 print("total is " + str(playlists['items'][i]['tracks']['total']))
         return playlistIdList
+
 
     def getAllTracks(self, playlistIds) -> typing.Dict:
         '''
@@ -51,8 +63,8 @@ class SpotifyHelper():
         tracks = {}
         for key, value in playlistIds.items():
             #print("value is " + str(value['id']))
-            tmp = self.sp.playlist_tracks(value['id'], offset=0, limit=50)
-            songs = tmp['items']            
+            tmp = self.sp.playlist_tracks(value['id'], offset=0, market='US', limit=50)
+            songs = tmp['items']
             tracks[key] = songs
 
         return tracks
@@ -87,11 +99,11 @@ class SpotifyHelper():
                         artistCountDict[curArtist['name']] += 1
                     else:
                         artistCountDict[curArtist['name']] = 1
-                        artistIdDict[curArtist['name']] = curArtist['id']       
+                        artistIdDict[curArtist['name']] = curArtist['id']
 
         return artistCountDict, artistIdDict
 
-    def getTopFiveArtists(self,artistsCount, artistsId) -> typing.Dict: 
+    def getTopFiveArtists(self,artistsCount, artistsId) -> typing.Dict:
         '''
 
         '''
@@ -112,7 +124,7 @@ class SpotifyHelper():
         '''
 
         '''
-        ''' 
+        '''
         artistUriStr = []
         genreDict = {}
         topFiveGenre = {}
@@ -138,26 +150,53 @@ class SpotifyHelper():
             #print(topGenres[i] + " count " + str(genreDict[topGenres[i]]))
             topFiveGenre[topGenres[i]] = genreDict[topGenres[i]]
 
-        return topFiveGenre
+        return topFiveGenre, genreDict
 
-    def getTotalMinutesAdded(tracks) -> int:
+    def getTotalMinutesAdded(self, tracks) -> int:
         '''
+        @name: getTotalMinutesAdded
+        @param: sp - the spotify wrapper object to access the api
+        @param: ids - a list of all the playlists
+        @description: Return the total number of mintues added
         '''
-        return
+        totalTime = 0
+        for key, trackList in tracks.items():
+            for i in range(0, len(trackList)):
+                curTrack = trackList[i]
+                totalTime += curTrack['track']['duration_ms']
+        minutes = totalTime/60000
+        return minutes
 
-    def getUniqueArtistsCount(self):
+
+    def getUniqueArtistsCount(self, artistsCount):
         '''
         @name: getUniqueArtistsCount
-        @description: gets the total count of all the unique artists. Probably an easy way to get is to take the return of getArtists as an input and just return the length of the list
+        @param: sp - the spotify wrapper object to access the api
+        @param: artistsCount - dictionary of all the artists added to monthly playlists
+        @description: gets the total count of all the unique artists.
         '''
-        return
-    
-    def getTopContributors(self):
+        return len(artistsCount)
+
+    def getTopContributors(self, tracks):
         '''
         @name: getTopContributors
-        @description: returns a list of all the top contributors 
+        @param: sp - the spotify wrapper object to access the api
+        @param: ids - a list of all the playlists
+        @description: returns a dictionary of all the top contributors
         '''
-        return
+        frequent_users = {}
+        for key, trackList in tracks.items():
+            for i in range(0, len(trackList)):
+                curTrack = trackList[i]
+                userId = curTrack['added_by']['id']
+                displayName = displayNames.get(userId)
+                if displayName in frequent_users:
+                    temp = {displayName: frequent_users.get(displayName)+1}
+                    frequent_users.update(temp)
+                else:
+                    frequent_users[displayName] = 1
+        sorted_d = dict( sorted(frequent_users.items(), key=operator.itemgetter(1),reverse=True))
+        return sorted_d
 
     def getPlaylistsByCreatedBy(self):
         '''
@@ -166,10 +205,129 @@ class SpotifyHelper():
         '''
         return
 
-    def getUniqueGenresCount(self):
+    def getUniqueGenresCount(self, genreDict):
         '''
         @name: getUniqueGenresCount
+        @param: sp - the spotify wrapper object to access the api
+        @param: genreDict - dictionary of all the genres added to monthly playlists
         @description: gets the total count of all the unique genres.
         '''
-        return
+        return len(genreDict)
 
+    def getSeasonFeatures(self, ids):
+        '''
+        @name: getSeasonFeatures
+        @param: sp - the spotify wrapper object to access the api
+        @param: ids - a list of all the playlists
+        @description: returns a dictionary of songs features for each season
+            (currently limited to liveness, danceability and valence)
+        '''
+        fall_songs = 0
+        fall_song_features = {}
+        summer_songs = 0
+        summer_song_features = {}
+        spring_songs = 0
+        spring_song_features = {}
+        winter_songs = 0
+        winter_song_features = {}
+        for i in ids:
+            playlistId = ids[i]['id']
+            playlistInfo = self.sp.playlist_items(playlistId, fields=None, limit=100, offset=0, market='US', additional_types=('track',))
+            track_id = []
+            added_at = playlistInfo['items'][0]['added_at']
+            playlistMonth = int(added_at[5:7])
+            for idx, tracks in enumerate(playlistInfo['items']):
+                #track_id[idx] = playlistInfo['items'][idx]['track']['id']
+                track_id.append(playlistInfo['items'][idx]['track']['id'])
+            if (playlistMonth == 12 or playlistMonth == 1 or playlistMonth == 2):
+                winter_song_features, winter_songs = self.getSpecificFeatures(track_id, winter_song_features, winter_songs)
+            elif (playlistMonth == 3 or playlistMonth == 4 or playlistMonth == 5):
+                spring_song_features, spring_songs = self.getSpecificFeatures(track_id, spring_song_features, spring_songs)
+            elif (playlistMonth == 6 or playlistMonth == 7 or playlistMonth == 8):
+                summer_song_features, summer_songs = self.getSpecificFeatures(track_id, summer_song_features, summer_songs)
+            elif (playlistMonth == 9 or playlistMonth == 10 or playlistMonth == 11):
+                fall_song_features, fall_songs = self.getSpecificFeatures(track_id, fall_song_features, fall_songs)
+
+        average_danceability = round(winter_song_features.get('danceability')/winter_songs,4)
+        winter_song_features.update({'danceability': average_danceability})
+        average_liveness = round(winter_song_features.get('liveness')/winter_songs,4)
+        winter_song_features.update({'liveness': average_liveness})
+        average_valence = round(winter_song_features.get('valence')/winter_songs,4)
+        winter_song_features.update({'valence': average_valence})
+
+        average_danceability = round(spring_song_features.get('danceability')/spring_songs,4)
+        spring_song_features.update({'danceability': average_danceability})
+        average_liveness = round(spring_song_features.get('liveness')/spring_songs,4)
+        spring_song_features.update({'liveness': average_liveness})
+        average_valence = round(spring_song_features.get('valence')/spring_songs,4)
+        spring_song_features.update({'valence': average_valence})
+
+        average_danceability = round(summer_song_features.get('danceability')/summer_songs,4)
+        summer_song_features.update({'danceability': average_danceability})
+        average_liveness = round(summer_song_features.get('liveness')/summer_songs,4)
+        summer_song_features.update({'liveness': average_liveness})
+        average_valence = round(summer_song_features.get('valence')/summer_songs,4)
+        summer_song_features.update({'valence': average_valence})
+
+        average_danceability = round(fall_song_features.get('danceability')/fall_songs,4)
+        fall_song_features.update({'danceability': average_danceability})
+        average_liveness = round(fall_song_features.get('liveness')/fall_songs,4)
+        fall_song_features.update({'liveness': average_liveness})
+        average_valence = round(fall_song_features.get('valence')/fall_songs,4)
+        fall_song_features.update({'valence': average_valence})
+
+        return winter_song_features, spring_song_features, summer_song_features, fall_song_features
+
+    def getSpecificFeatures(self,track_id, song_features, songs):
+        '''
+        @name: getSpecificFeatures
+        @param: sp - the spotify wrapper object to access the api
+        @param: track_id - track ids for a specific playlist
+        @param: song_features - a dictionary that holds the average features for a specific season
+        @param: songs - number of songs for that specific season
+        @description: Track ids from each playlist are passed in the audio features are added to
+            dictionaries
+        '''
+        songs += len(track_id)
+        #print(songs)
+        track_features = self.sp.audio_features(tracks=track_id)
+        for i in track_features:
+            if 'danceability' in song_features:
+                sum = song_features.get('danceability')+i['danceability']
+                song_features.update({'danceability': sum})
+            else:
+                song_features['danceability'] = i['danceability']
+            if 'liveness' in song_features:
+                sum = song_features.get('liveness')+i['liveness']
+                song_features.update({'liveness': sum})
+            else:
+                song_features['liveness'] = i['liveness']
+            if 'valence' in song_features:
+                sum = song_features.get('valence')+i['valence']
+                song_features.update({'valence': sum})
+            else:
+                song_features['valence'] = i['valence']
+        return song_features, songs
+
+    def getExplicitContributors(self, tracks):
+        '''
+        @name: getExplicitContributors
+        @param: sp - the spotify wrapper object to access the api
+        @param: track_id -
+        @description: Return a dictionary about the top contributors who added explicit songs
+        '''
+        explicit_users = {}
+        for key, trackList in tracks.items():
+            for i in range(0, len(trackList)):
+                curTrack = trackList[i]
+                explicit = curTrack['track']['explicit']
+                #print(artistList)
+                if explicit == True:
+                    userId = curTrack['added_by']['id']
+                    displayName = displayNames.get(userId)
+                    if displayName in explicit_users:
+                        temp = {displayName: explicit_users.get(displayName)+1}
+                        explicit_users.update(temp)
+                    else:
+                        explicit_users[displayName] = 1
+        return explicit_users
