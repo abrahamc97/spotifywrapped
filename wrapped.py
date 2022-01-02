@@ -67,7 +67,6 @@ class SpotifyHelper():
             tmp = self.sp.playlist_tracks(value['id'], offset=0, market='US', limit=50)
             songs = tmp['items']
             tracks[key] = songs
-
         return tracks
 
     def getMonthWithMostSongs(self,playlistIds) -> str:
@@ -346,3 +345,49 @@ class SpotifyHelper():
                         explicit_users[displayName] = 1
         sorted_d = dict( sorted(explicit_users.items(), key=operator.itemgetter(1),reverse=True))
         return sorted_d
+
+    def getCreatorReigns(self, ids):
+        '''
+        @name: get getCreatorReign
+        @param: sp - the spotify wrapper object to access the api
+        @param: tracks - all the track items of the playlists
+        @description: Return a dictionary of average audio features for both playlist creators
+        '''
+        christin_songs = 0
+        christin_playlists = {}
+        jasmine_songs = 0
+        jasmine_playlists = {}
+        for i in ids:
+            track_id = []
+            playlistId = ids[i]['id']
+            playlistInfo = self.sp.playlist(playlistId, fields=None, market='US', additional_types=('track', ))
+            track_id = []
+            userId = playlistInfo['owner']['id']
+            displayName = displayNames.get(userId)
+            tracks = playlistInfo['tracks']['items']
+            for i in range(0, len(tracks)):
+                curTrackId = tracks[i]['track']['id']
+                track_id.append(curTrackId)
+            if displayName == 'Christin':
+                christin_playlists, christin_songs = self.getSpecificFeatures(track_id, christin_playlists, christin_songs)
+            elif displayName == 'Jasmine':
+                jasmine_playlists, jasmine_songs = self.getSpecificFeatures(track_id, jasmine_playlists, jasmine_songs)
+        average_danceability = round(christin_playlists.get('danceability')/christin_songs,4)
+        christin_playlists.update({'danceability': average_danceability})
+        average_energy = round(christin_playlists.get('energy')/christin_songs,4)
+        christin_playlists.update({'energy': average_energy})
+        average_liveness = round(christin_playlists.get('liveness')/christin_songs,4)
+        christin_playlists.update({'liveness': average_liveness})
+        average_valence = round(christin_playlists.get('valence')/christin_songs,4)
+        christin_playlists.update({'valence': average_valence})
+
+        average_danceability = round(jasmine_playlists.get('danceability')/jasmine_songs,4)
+        jasmine_playlists.update({'danceability': average_danceability})
+        average_energy = round(jasmine_playlists.get('energy')/jasmine_songs,4)
+        jasmine_playlists.update({'energy': average_energy})
+        average_liveness = round(jasmine_playlists.get('liveness')/jasmine_songs,4)
+        jasmine_playlists.update({'liveness': average_liveness})
+        average_valence = round(jasmine_playlists.get('valence')/jasmine_songs,4)
+        jasmine_playlists.update({'valence': average_valence})
+
+        return christin_playlists, jasmine_playlists
