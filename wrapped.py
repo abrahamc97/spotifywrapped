@@ -42,7 +42,8 @@ class SpotifyHelper():
             #     miniDict['num_songs'] = total
             #     playlistIdList[playlists['items'][i]['name']] = miniDict
             #     print("total is " + str(playlists['items'][i]['tracks']['total']))
-            if(username == 'chris.a147'):
+            displayName = displayNames.get(username)
+            if(displayName == 'Christin'):
                 playlistId = playlists['items'][i]['id']
                 total = playlists['items'][i]['tracks']['total']
                 miniDict = {}
@@ -250,6 +251,8 @@ class SpotifyHelper():
 
         average_danceability = round(winter_song_features.get('danceability')/winter_songs,4)
         winter_song_features.update({'danceability': average_danceability})
+        average_energy = round(winter_song_features.get('energy')/winter_songs,4)
+        winter_song_features.update({'energy': average_energy})
         average_liveness = round(winter_song_features.get('liveness')/winter_songs,4)
         winter_song_features.update({'liveness': average_liveness})
         average_valence = round(winter_song_features.get('valence')/winter_songs,4)
@@ -257,6 +260,8 @@ class SpotifyHelper():
 
         average_danceability = round(spring_song_features.get('danceability')/spring_songs,4)
         spring_song_features.update({'danceability': average_danceability})
+        average_energy = round(spring_song_features.get('energy')/spring_songs,4)
+        spring_song_features.update({'energy': average_energy})
         average_liveness = round(spring_song_features.get('liveness')/spring_songs,4)
         spring_song_features.update({'liveness': average_liveness})
         average_valence = round(spring_song_features.get('valence')/spring_songs,4)
@@ -264,6 +269,8 @@ class SpotifyHelper():
 
         average_danceability = round(summer_song_features.get('danceability')/summer_songs,4)
         summer_song_features.update({'danceability': average_danceability})
+        average_energy = round(summer_song_features.get('energy')/summer_songs,4)
+        summer_song_features.update({'energy': average_energy})
         average_liveness = round(summer_song_features.get('liveness')/summer_songs,4)
         summer_song_features.update({'liveness': average_liveness})
         average_valence = round(summer_song_features.get('valence')/summer_songs,4)
@@ -271,12 +278,14 @@ class SpotifyHelper():
 
         average_danceability = round(fall_song_features.get('danceability')/fall_songs,4)
         fall_song_features.update({'danceability': average_danceability})
+        average_energy = round(fall_song_features.get('energy')/fall_songs,4)
+        fall_song_features.update({'energy': average_energy})
         average_liveness = round(fall_song_features.get('liveness')/fall_songs,4)
         fall_song_features.update({'liveness': average_liveness})
         average_valence = round(fall_song_features.get('valence')/fall_songs,4)
         fall_song_features.update({'valence': average_valence})
 
-        return winter_song_features, spring_song_features, summer_song_features, fall_song_features
+        return winter_song_features, winter_songs, spring_song_features, spring_songs, summer_song_features, summer_songs, fall_song_features, fall_songs
 
     def getSpecificFeatures(self,track_id, song_features, songs):
         '''
@@ -297,6 +306,11 @@ class SpotifyHelper():
                 song_features.update({'danceability': sum})
             else:
                 song_features['danceability'] = i['danceability']
+            if 'energy' in song_features:
+                sum = song_features.get('energy')+i['energy']
+                song_features.update({'energy': sum})
+            else:
+                song_features['energy'] = i['energy']
             if 'liveness' in song_features:
                 sum = song_features.get('liveness')+i['liveness']
                 song_features.update({'liveness': sum})
@@ -330,4 +344,5 @@ class SpotifyHelper():
                         explicit_users.update(temp)
                     else:
                         explicit_users[displayName] = 1
-        return explicit_users
+        sorted_d = dict( sorted(explicit_users.items(), key=operator.itemgetter(1),reverse=True))
+        return sorted_d
